@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        html {
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        body {
+            margin: 0;
+            height: 100%;
+            width: 100%;
+            font-family: Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif !important;
+            overflow: hidden;
+        }
+
+        .Navbar {
+            margin: 0;
+            padding: 0;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 200;
+        }
+
+        .content-wrapper {
+            width: 100vw;
+            padding-top: 3.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panes {
+            width: 100%;
+            height: calc(100vh - 3.5rem);
+            display: flex;
+        }
+
+        #cyto {
+            width: 100%;
+            height: 100%;
+            /* border: 1px solid #aaa; */
+        }
+
+        .countries {
+            fill: none;
+            stroke: #fff;
+            stroke-linejoin: round;
+        }
+
+        .legendThreshold {
+            font-size: 12px;
+            font-family: sans-serif;
+        }
+
+        .caption {
+            fill: #000;
+            text-anchor: start;
+            font-weight: bold;
+        }
+
+        .bar {
+            fill: steelblue;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
+        integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <link href="./bootstrap.min.css" rel="stylesheet" />
+    <script src="cytoscape.min.js"></script>
+    <script src="./typeahead.js"></script>
+    <script src="./bootstrap.min.js"></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+    <script src="./helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.24.0/d3-legend.js"></script>
+    <script>
+        $(document).ready(function () {
+            var panes = $("#wrapper ").children();
+            var pos = 0;
+            var max = panes.length;
+
+            $("#traitForm").hide("slow");
+            $("#peopleForm").hide("slow");
+
+
+            function createElement(position, isBase, letter, people, traits) {
+                this.position = position;
+                this.isBase = isBase;
+                this.letter = letter;
+                this.people = people;
+                this.traits = traits;
+            }
+
+            function createPerson(name, height, weight, sex, race, profession, country, baseArray) {
+                this.name = name;
+                this.height = height;
+                this.weight = weight;
+                this.sex = sex;
+                this.race = race;
+                this.profession = profession;
+                this.country = country;
+                this.baseArray = baseArray;
+            }
+
+            function createTrait(name, description, phenotype, base) {
+                this.name = name;
+                this.description = description;
+                this.phenotype = phenotype;
+                this.base = base;
+            }
+
+            var trait1 = new createTrait("Alcohol Flush", "Alocohol Flush syndrome caused due to hydrolase inactivity.", "Red Cheeks", ["1A"]);
+            var trait2 = new createTrait("Alcohol Flush2", "Alocohol Flush syndrome caused due to hydrolase inactivity. 2", "Red Cheeks 2", ["2A"]);
+            var traits = [trait1, trait2];
+
+            traits.forEach(element => {
+                $("#traitList").append("<div>" + element["name"] + "</div>");
+            });
+
+            palette = {
+                "pink": ["#d60f66", "#8c0f45"],
+                "orange": ["#ff6e1a", "#d13012"],
+                "golden": ["#ffba33", "#e58a00"],
+                "yellow": ["#fadb6e", "#f2c200"],
+                "lime": ["#94c747", "#75a629"],
+                "green": ["#3ba612", "#337317"],
+                "cyan": ["#00b5b5", "#0f8c8c"],
+                "sky": ["#54c9ed", "#0082a6"],
+                "blue": ["#3696d6", "#005c99"],
+                "ocean": ["#425ebf", "#142e8a"],
+                "purple": ["#703699", "#4a1773"],
+                "magenta": ["#a10f7d", "#75125e"],
+
+            }
+
+            $("#traitList div").click(function (e) {
+                console.log($('#traitList div').index(this));
+                let idx = $('#traitList div').index(this);
+                $("#traitCard").html("<div class=\"card text-center\">  <div class=\"card-header\">    " + traits[idx]["name"] + "  </div>  <div class=\"card-body\">    <h5 class=\"card-title\">" + traits[idx]["description"] + "</h5>    <p class=\"card-text\">With supporting text below as a natural lead-in to additional content.</p>    <a href=\"#\" class=\"btn btn-primary\">Go somewhere</a>  </div>  <div class=\"card-footer text-muted\">    2 days ago  </div></div>");
+            });
+
+            const races = ["Amercian", "Indian", "European", "Asian", "African", "Latino", "Slavic"];
+            const professions = ["Engineer", "Doctor", "NA", "blue colar", "lawyer", "civil servant", "armed forces", "sports", "artist"]
+            const countries = [];
+
+            // for (const key in palette) {
+            //     if (palette.hasOwnProperty(key)) {
+            //         const element = palette[key];
+            //         $("#yellow").append("<div style=\"background-color:" + element[0] + ";width:20px;height:20px;\"></div>");
+            //         $("#yellow").append("<div style=\"background-color:" + element[1] + ";width:20px;height:20px;\"></div>");
+            //     }
+            // }
+
+            $("#peopleSearchRedirect").click(function (e) {
+                e.preventDefault();
+                $("#mainForm").hide();
+                $("#traitForm").hide();
+                $("#peopleForm").fadeIn("slow");
+            });
+
+            $("#traitSearchRedirect").click(function (e) {
+                e.preventDefault();
+                $("#mainForm").hide();
+                $("#peopleForm").hide();
+                $("#traitForm").fadeIn("slow");
+            });
+
+            $("#peopleBackButton").click(function (e) {
+                e.preventDefault();
+                $("#traitForm").hide();
+                $("#peopleForm").hide();
+                $("#mainForm").fadeIn("slow");
+            });
+
+            $("#traitBackButton").click(function (e) {
+                e.preventDefault();
+                $("#traitForm").hide();
+                $("#peopleForm").hide();
+                $("#mainForm").fadeIn("slow");
+            });
+
+            $(document).keydown(function (event) {
+                // console.log(event.key);
+                if (event.key == "r") {
+                    let element = document.getElementById("red");
+                    element.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+                }
+                if (event.key == "b") {
+                    let element = document.getElementById("blue");
+                    element.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+                }
+                if (event.key == "y") {
+                    let element = document.getElementById("yellow");
+                    element.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+                }
+                if (event.key == "ArrowDown") {
+                    pos = (pos + 1) % max;
+                    panes[pos].scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+                }
+                if (event.key == "ArrowUp") {
+                    pos = (pos - 1 + max) % max;
+                    panes[pos].scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+                }
+
+
+            });
+
+
+
+            var substringMatcher = function (strs) {
+                return function findMatches(q, cb) {
+                    var matches, substringRegex;
+
+                    // an array that will be populated with substring matches
+                    matches = [];
+
+                    // regex used to determine if a string contains the substring `q`
+                    substrRegex = new RegExp(q, 'i');
+
+                    // iterate through the pool of strings and for any string that
+                    // contains the substring `q`, add it to the `matches` array
+                    $.each(strs, function (i, str) {
+                        if (substrRegex.test(str)) {
+                            matches.push(str);
+                        }
+                    });
+
+                    cb(matches);
+                };
+            };
+
+            var states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+                'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii',
+                'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
+                'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+                'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+                'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+                'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+                'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+                'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+            ];
+
+            $('#the-basics .typeahead').typeahead({
+                hint: true,
+                highlight: true,
+                minLength: 1
+            },
+                {
+                    name: 'states',
+                    source: substringMatcher(states)
+                });
+
+
+
+            fetch('https://soft-shoe.us-west-2.aws.cloud.dgraph.io/graphql', {
+                method: 'post',
+                headers: {
+                    'Content-Type': 'application/GraphQL; charset=UTF-8',
+                },
+                body: 'query MyQuery2 {  getperson(id: "Ace") {    id    name    baseArray(order: {asc: absolutePosition}) {      absolutePosition      isBase      letter    }  }}'
+            })
+                .then(response => response.json())
+                .then(commits => {
+                    var nodes = [];
+                    commits["data"]["getperson"]["baseArray"].forEach(element => {
+                        let ele = {
+                            data: {},
+                        }
+                        ele["data"]["id"] = element["absolutePosition"];
+                        ele["data"]["name"] = element["letter"];
+                        nodes.push(ele);
+                    });
+
+                    // console.log(nodes);
+                    var edges = [];
+                    let Flag = false;
+                    let last;
+                    nodes.forEach(element => {
+                        if (Flag) {
+                            let ele = {
+                                data: {},
+                            }
+                            ele["data"]["id"] = element["data"]["id"] + last["data"]["id"];
+                            ele["data"]["source"] = last["data"]["id"];
+                            ele["data"]["target"] = element["data"]["id"];
+                            last = element;
+                            edges.push(ele);
+                        } else {
+                            Flag = true;
+                            last = element;
+                        }
+                    });
+                    // console.log(edges);
+
+
+
+                });
+
+            fetch('https://next-destruction.us-west-2.aws.cloud.dgraph.io/graphql', {
+                method: 'post',
+                headers: {
+                    'Content-Type': 'application/GraphQL; charset=UTF-8',
+                },
+                body: 'query MyQuery {  queryelement(filter: {}, order: {asc: absolutePosition}) {    isBase    absolutePosition    letter    people{      name    }}}'
+            })
+                .then(response => response.json())
+                .then(commits => {
+                    console.log(commits["data"]["queryelement"]);
+                    let data = commits["data"]["queryelement"];
+                    let Nodes = [];
+                    let Edges = [];
+                    let levels = [];
+                    let BaseElements = [];
+                    let cur = 1;
+                    let level = [];
+                    data.forEach(element => {
+                        let x = parseInt(element["absolutePosition"].slice(0, -1));
+                        let ele = {
+                            data: {},
+                        }
+                        ele["data"]["id"] = element["absolutePosition"];
+                        ele["data"]["name"] = element["letter"];
+                        ele["data"]["count"] = element["people"].length;
+                        if (element["isBase"]) {
+                            ele["data"]["color"] = "#425ebf";
+                            BaseElements.push(element);
+                        } else {
+                            ele["data"]["color"] = "#a10f7d";
+                        }
+                        Nodes.push(ele);
+                        if (x === cur) {
+                            level.push(element);
+                        } else {
+                            levels.push(level);
+                            cur = x;
+                            level = [];
+                            level.push(element);
+                        }
+                    });
+                    levels.push(level);
+                    console.log(levels);
+                    console.log(BaseElements);
+                    for (let i = 0; i < BaseElements.length; i++) {
+                        let j = i + 1;
+                        if (j < levels.length) {
+                            levels[j].forEach(element => {
+                                let ele = {
+                                    data: {},
+                                }
+                                ele["data"]["id"] = element["absolutePosition"] + BaseElements[i]["absolutePosition"];
+                                ele["data"]["source"] = BaseElements[i]["absolutePosition"];
+                                ele["data"]["target"] = element["absolutePosition"];
+                //                 "ocean": ["#425ebf", "#142e8a"],
+                // "purple": ["#703699", "#4a1773"],
+                // "magenta": ["#a10f7d", "#75125e"],
+                                if(BaseElements[i]["isBase"] && element["isBase"]){
+                                    ele["data"]["color"] = "#4a1773";
+                                }else{
+                                    ele["data"]["color"] = "#75125e";
+                                }
+                                last = element;
+                                Edges.push(ele);
+                            });
+
+                        }
+                    }
+
+                    for (let i = BaseElements.length - 1; i > 0; i--) {
+                        let j = i - 1;
+                        if (j > 0) {
+                            levels[j].forEach(element => {
+                                if (element["isBase"]) {
+
+                                } else {
+                                    let ele = {
+                                        data: {},
+                                    }
+                                    ele["data"]["id"] = element["absolutePosition"] + BaseElements[i]["absolutePosition"];
+                                    ele["data"]["source"] = element["absolutePosition"];
+                                    ele["data"]["target"] = BaseElements[i]["absolutePosition"];
+                                    if(BaseElements[i]["isBase"] && element["isBase"]){
+                                    ele["data"]["color"] = "#4a1773";
+                                    }else{
+                                    ele["data"]["color"] = "#75125e";
+                                    }
+                                    last = element;
+                                    Edges.push(ele);
+                                }
+
+                            });
+                        }
+
+                    }
+
+                    console.log(Edges);
+
+                    var cy = window.cy = cytoscape({
+                        container: document.getElementById('cyto'),
+
+                        elements: {
+                            nodes: Nodes,
+                            edges: Edges
+                        },
+
+                        layout: {
+                            name: 'breadthfirst',
+
+                            fit: true, // whether to fit the viewport to the graph
+                            directed: false, // whether the tree is directed downwards (or edges can point in any direction if false)
+                            padding: 30, // padding on fit
+                            circle: false, // put depths in concentric circles if true, put depths top down if false
+                            grid: false, // whether to create an even grid into which the DAG is placed (circle:false only)
+                            spacingFactor: 1.75, // positive spacing factor, larger => more space between nodes (N.B. n/a if causes overlap)
+                            boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+                            avoidOverlap: true, // prevents node overlap, may overflow boundingBox if not enough space
+                            nodeDimensionsIncludeLabels: false, // Excludes the label when calculating node bounding boxes for the layout algorithm
+                            roots: undefined, // the roots of the trees
+                            maximal: true, // whether to shift nodes down their natural BFS depths in order to avoid upwards edges (DAGS only)
+                            animate: true, // whether to transition the node positions
+                            animationDuration: 500, // duration of animation in ms if enabled
+                            animationEasing: undefined, // easing of animation if enabled,
+                            animateFilter: function (node, i) { return true; }, // a function that determines whether the node should be animated.  All nodes animated by default on animate enabled.  Non-animated nodes are positioned immediately when the layout starts
+                            ready: undefined, // callback on layoutready
+                            stop: undefined, // callback on layoutstop
+                            transform: function (node, position) { return position; }
+                        },
+
+                        style: [
+                            {
+                                selector: 'node',
+                                style: {
+                                    'label': 'data(id)',
+                                    'color': 'data(color)',
+                                    'background-color' : 'data(color)'
+                                }
+                            },
+                            {
+                                selector: 'edge',
+                                css: {
+                                    'curve-style': 'bezier',
+                                    'target-arrow-shape': 'triangle',
+                                    'line-color': 'data(color)',
+                                    // 'line-style': 'data(linestyle)'
+                                }
+                            }
+                        ]
+                    });
+                });
+
+            getPersonFromGraphQL();
+            plotHorizontalBar();
+        });
+    </script>
+</head>
+
+<body>
+    <div class="Navbar">
+        <nav class="navbar navbar-expand-sm bg-light navbar-light justify-content-center"
+            style="width: 100%;margin: 0;">
+            <ul class="navbar-nav">
+                <li class="nav-item active" id="traits">
+                    <a class="nav-link" href="#">Traits</a>
+                </li>
+                <li class="nav-item" id="ancestry">
+                    <a class="nav-link" href="#">Ancestry</a>
+                </li>
+                <li class="nav-item" id="health">
+                    <a class="nav-link" href="#">Health</a>
+                </li>
+                <li class="nav-item" id="">
+                    <a class="nav-link" href="#">Wellness</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Carrier</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    <div>
+        <div class="content-wrapper" id="wrapper">
+            <div class="panes" id="search" style="display: flex;justify-content: center;align-items: center;">
+                <form class="form-inline" id="mainForm">
+                    <button type="mutation" style="margin: 10px;" class="btn btn-primary mb-2"
+                        id="peopleSearchRedirect">Mutation Analysis</button>
+                    <button type="geography" style="margin: 10px;" class="btn btn-primary mb-2"
+                        id="traitSearchRedirect">Geographical Analysis</button>
+                </form>
+                <form class="form" id="peopleForm">
+                    <div class="form-group mx-sm-3 mb-2" style="margin: 10px;">
+                        <div class="form-group">
+                            <label for="exampleInputEmail1">Name</label>
+                            <input type="text" class="form-control" id="exampleInputEmail1"
+                                aria-describedby="emailHelp">
+                        </div>
+                        <div class="form-group" id="the-basics">
+                            <label for="exampleInputPassword1">Country</label>
+                            <input type="text" class="form-control typeahead" id="exampleInputPassword1">
+                        </div>
+                        <div class="form-group">
+                            <label for="exampleInputPassword1">Race</label>
+                            <input type="text" class="form-control" id="exampleInputPassword1">
+                        </div>
+                        <div class="form-group">
+                            <label for="exampleInputPassword1">Profession</label>
+                            <input type="text" class="form-control" id="exampleInputPassword1">
+                        </div>
+                        <div class="form-group">
+                            <label for="exampleInputPassword1">Max Height</label>
+                            <input type="text" class="form-control" id="exampleInputPassword1">
+                        </div>
+                        <div class="form-group">
+                            <label for="exampleInputPassword1">Max Weigth</label>
+                            <input type="text" class="form-control" id="exampleInputPassword1">
+                        </div>
+                        <div class="form-group form-check">
+                            <input type="checkbox" class="form-check-input" id="exampleCheck1">
+                            <label class="form-check-label" for="exampleCheck1">Get me everyone?</label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mb-2" style="margin: 10px;">Search people</button>
+                    <button class="btn btn-primary mb-2" style="margin: 10px;" id="peopleBackButton">home</button>
+                </form>
+                <form class="form" id="traitForm">
+                    <div class="form-group mx-sm-3 mb-2">
+                        <div class="form-group">
+                            <input type="text" class="form-control" id="traitName">
+                            <label for="traitName" class="sr-only">Traits</label>
+                        </div>
+
+
+                        <div class="form-group form-check">
+                            <input type="checkbox" class="form-check-input" id="exampleCheck1">
+                            <label class="form-check-label" for="exampleCheck1">All traits?</label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mb-2" style="margin-right: 10px;">Search Traits</button>
+                    <button class="btn btn-primary mb-2" style="margin-right: 10px;" id="traitBackButton">home</button>
+                </form>
+
+            </div>
+            <div class="panes" id="blue">
+                <div style="height: 100%;width:100%;" id="cyto">
+
+                </div>
+            </div>
+            <div class="panes" id="red" style="">
+                <div style="height: 100%;width:50%;" id="horizontalBarSVG">
+
+                </div>
+                <div style="height: 100%;width:50%;" id="chloro">
+                    <svg width="100%" height="100%" id="chloroSVG"></svg>
+                </div>
+            </div>
+            <div class="panes" id="yellow">
+                <div style="height: 100%;width:50%; display: flex; flex-direction: column; justify-content: center; align-items: center;"
+                    id="traitList">
+
+                </div>
+                <div style="height: 100%;width:50%;" id="traitCard">
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
