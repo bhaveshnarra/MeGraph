@@ -203,6 +203,7 @@
             $("#peopleForm").hide("slow");
 
 
+
             function createElement(position, isBase, letter, people, traits) {
                 this.position = position;
                 this.isBase = isBase;
@@ -233,20 +234,13 @@
             var trait2 = new createTrait("Alcohol Flush2", "Alocohol Flush syndrome caused due to hydrolase inactivity. 2", "Red Cheeks 2", ["2A"]);
             var traits = [trait1, trait2];
 
-            traits.forEach(element => {
-                $("#traitList").append("<a class=\"button button--primary mb-2\" style=\"margin: 10px;\"><span>" + element["name"] + " </span></a>");
 
-            });
 
-            $("#traitList a").click(function(e) {
-                console.log($('#traitList a').index(this));
-                let idx = $('#traitList a').index(this);
-                $("#traitCard").html("<div class=\"card text-center\" style=\"background: transparent;border: none;\">      <div class=\"card-body\" style=\"background: transparent;border: none;\"> <h2 style=\"font-size: 3rem;  font-weight: 900;\"> " + traits[idx]["name"] + "</h2>  <h3 class=\"card-title\">" + traits[idx]["description"] + "</h3>    <p class=\"card-text\">With supporting text below as a natural lead-in to additional content.</p>  </div>  </div>");
-            });
+
 
             const races = ["Amercian", "Indian", "European", "Asian", "African", "Latino", "Slavic"];
             const professions = ["Engineer", "Doctor", "NA", "blue colar", "lawyer", "civil servant", "armed forces", "sports", "artist"]
-            const countries = [];
+
 
             $("#peopleSearchRedirect").click(function(e) {
                 e.preventDefault();
@@ -406,18 +400,19 @@
 
 
             getAllPeople();
-            getPersonFromGraphQL([{
-                "BWA": 1
-            }, {
-                "BRA": 319
-            }]);
-            plotHorizontalBar([{
-                "country": "Japan",
-                "freq": 33
-            }, {
-                "country": "USA",
-                "freq": 12
-            }]);
+            // getPersonFromGraphQL([
+            //     ["BWA", 1],
+            //     ["BRA", 319]
+            // ]);
+            // plotHorizontalBar([{
+            //     "country": "Japan",
+            //     "freq": 33
+            // }, {
+            //     "country": "USA",
+            //     "freq": 12
+            // }]);
+
+            getAllTraits();
 
         });
     </script>
@@ -510,7 +505,7 @@
 
                 </div>
             </div>
-            <div class="panes" id="red" style="display: flex;  justify-content: end;align-items: baseline;">
+            <div class="panes" id="red" style="display: flex;  justify-content: end;align-items: center;">
                 <div style="height: 100%;width:70%;" id="chloro">
                     <svg width="100%" height="100%" id="chloroSVG"></svg>
                 </div>

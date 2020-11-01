@@ -2,7 +2,7 @@ function plotHorizontalBar(data2) {
     var data = [{ "salesperson": "Bob", "sales": 33 }, { "salesperson": "Robin", "sales": 12 }, { "salesperson": "Anne", "sales": 41 }, { "salesperson": "Mark", "sales": 16 }, { "salesperson": "Joe", "sales": 59 }, { "salesperson": "Eve", "sales": 38 }, { "salesperson": "Karen", "sales": 21 }, { "salesperson": "Kirsty", "sales": 25 }, { "salesperson": "Chris", "sales": 30 }, { "salesperson": "Lisa", "sales": 47 }, { "salesperson": "Tom", "sales": 5 }, { "salesperson": "Stacy", "sales": 20 }, { "salesperson": "Charles", "sales": 13 }, { "salesperson": "Mary", "sales": 29 }];
 
     // set the dimensions and margins of the graph
-    var margin = { top: 20, right: 20, bottom: 30, left: 40 },
+    var margin = { top: 20, right: 20, bottom: 30, left: 120 },
         width = $("#horizontalBarSVG").width() - margin.left - margin.right,
         height = $("#horizontalBarSVG").height() - margin.top - margin.bottom;
 
@@ -45,7 +45,7 @@ function plotHorizontalBar(data2) {
         .attr("width", function(d) { return x(d.freq); })
         .attr("y", function(d) { return y(d.country); })
         .attr("height", y.bandwidth())
-        .delay(function(d, i) { console.log(i); return (i * 100) });
+        .delay(function(d, i) { return (i * 100) });
 
     // add the x Axis
     svg.append("g")
@@ -111,12 +111,10 @@ function getPersonFromGraphQL(data2) {
         //     data.set(d.code, +d.total);
         // })
         .await(ready);
-    for (x of data2) {
-        for (y in x) {
-            data.set(y, x[y]);
-        }
+    for (x in data2) {
+        data.set(data2[x][0], data2[x][1]);
+
     }
-    console.log(data);
 
     function ready(error, topo) {
         if (error) throw error;
@@ -131,23 +129,23 @@ function getPersonFromGraphQL(data2) {
                 d.total = data.get(d.id) || 0;
                 // Set the color
                 return colorScale(d.total);
-            })
+            }) // console.log(levels);
             .transition()
             .duration(100)
             .attr("d", path)
-            .delay(function(d, i) { console.log(i); return (i * 10) });
+            .delay(function(d, i) { return (i * 10) });
     }
 }
 
 
 
 function getAllPeople() {
-    fetch('https://next-destruction.us-west-2.aws.cloud.dgraph.io/graphql', {
+    fetch('https://megraph.ap-south-1.aws.cloud.dgraph.io/graphql', {
             method: 'post',
             headers: {
                 'Content-Type': 'application/GraphQL; charset=UTF-8',
             },
-            body: 'query MyQuery {  queryelement(filter: {}, order: {asc: absolutePosition}) {    isBase    absolutePosition    letter    people{      name    }}}'
+            body: 'query MyQuery {  queryelement(first: 100,filter: {}, order: {asc: position}) {    isBase    absolutePosition    letter    people{      name    }}}'
         })
         .then(response => response.json())
         .then(commits => {
@@ -160,7 +158,9 @@ function getAllPeople() {
             let cur = 1;
             let level = [];
             data.forEach(element => {
-                let x = parseInt(element["absolutePosition"].slice(0, -1));
+                // console.log(element["absolutePosition"]);
+                // console.log(element["absolutePosition"].slice(1));
+                let x = parseInt(element["absolutePosition"].slice(1));
                 let ele = {
                     data: {},
                 }
@@ -184,7 +184,7 @@ function getAllPeople() {
                 }
             });
             levels.push(level);
-            console.log(Nodes);
+            // console.log(Nodes);
             // console.log(levels);
             // console.log(BaseElements);
             for (let i = 0; i < BaseElements.length; i++) {
@@ -197,9 +197,6 @@ function getAllPeople() {
                         ele["data"]["id"] = element["absolutePosition"] + BaseElements[i]["absolutePosition"];
                         ele["data"]["source"] = BaseElements[i]["absolutePosition"];
                         ele["data"]["target"] = element["absolutePosition"];
-                        //                 "ocean": ["#425ebf", "#142e8a"],
-                        // "purple": ["#703699", "#4a1773"],
-                        // "magenta": ["#a10f7d", "#75125e"],
                         if (BaseElements[i]["isBase"] && element["isBase"]) {
                             ele["data"]["color"] = "#000000";
                         } else {
@@ -215,6 +212,7 @@ function getAllPeople() {
             for (let i = BaseElements.length - 1; i > 0; i--) {
                 let j = i - 1;
                 if (j > 0) {
+                    // console.log(j);
                     levels[j].forEach(element => {
                         if (element["isBase"]) {
 
@@ -325,3 +323,202 @@ function makePopper(ele) {
     });
     ele.tippy.setContent('Count ' + ele.data()["count"]);
 }
+
+function getAllTraits() {
+    fetch('https://megraph.ap-south-1.aws.cloud.dgraph.io/graphql', {
+            method: 'post',
+            headers: {
+                'Content-Type': 'application/GraphQL; charset=UTF-8',
+            },
+            body: 'query MyQuery {  queryTrait(first: 10) {      name       id        phenotype       description        base(filter: {isBase:false}){         people {        country    }  }      }   }'
+        })
+        .then(response => response.json())
+        .then(commits => {
+            console.log(commits["data"]["queryTrait"]);
+            let traits = [];
+            var countryFreq = {};
+            commits["data"]["queryTrait"].forEach(element => {
+                var trait = new createTrait(element["name"], element["description"], element["phenotype"], element["base"]);
+                traits.push(trait);
+                // console.log(trait);
+                element["base"].forEach(e => {
+                    e["people"].forEach(z => {
+                        // console.log(z["country"]);
+                        if (z["country"] in countryFreq) {
+                            countryFreq[z["country"]] += 1;
+                        } else {
+                            countryFreq[z["country"]] = 1;
+                        }
+                    });
+                });
+
+                console.log(Object.keys(countryFreq).length);
+                console.log(countries);
+
+                var pleth = [];
+                var bar = [];
+
+                for (x in countryFreq) {
+                    bar.push({
+                        "country": x,
+                        "freq": countryFreq[x]
+                    });
+                    var k = countries[x];
+                    pleth.push([k, countryFreq[x]]);
+                }
+
+                var sorted = [];
+                for (var key in countryFreq) {
+                    sorted[sorted.length] = countryFreq;
+                }
+                sorted.sort();
+
+                console.log(sorted);
+
+                // console.log(pleth);
+                // console.log(bar);
+                plotHorizontalBar(bar);
+                getPersonFromGraphQL(pleth);
+
+            });
+
+            traits.forEach(element => {
+                $("#traitList").append("<a class=\"button button--primary mb-2\" style=\"margin: 10px;\"><span>" + element["name"] + " </span></a>");
+
+            });
+
+            $("#traitList a").click(function(e) {
+                console.log($('#traitList a').index(this));
+                let idx = $('#traitList a').index(this);
+                $("#traitCard").html("<div class=\"card text-center\" style=\"background: transparent;border: none;\">      <div class=\"card-body\" style=\"background: transparent;border: none;\"> <h2 style=\"font-size: 3rem;  font-weight: 900;\"> " + traits[idx]["name"] + "</h2>  <h3 class=\"card-title\">" + traits[idx]["phenotype"] + "</h3>    <p class=\"card-text\">" + traits[idx]["description"] + "</p>  </div>  </div>");
+            });
+        });
+
+}
+
+function createTrait(name, description, phenotype, base) {
+    this.name = name;
+    this.description = description;
+    this.phenotype = phenotype;
+    this.base = base;
+}
+
+
+const countries = {
+    "Albania": "ALB",
+    "Algeria": "DZA",
+    "Antigua And Barbuda": "ATG",
+    "Argentina": "ARG",
+    "Armenia": "ARM",
+    "Australia": "AUS",
+    "Austria": "AUT",
+    "Azerbaijan": "AZE",
+    "Bangladesh": "BGD",
+    "Belarus": "BLR",
+    "Belgium": "BEL",
+    "Belize": "BLZ",
+    "Bermuda": "BMU",
+    "Bosnia And Herzegovina": "BIH",
+    "Botswana": "BWA",
+    "Brazil": "BRA",
+    "Bulgaria": "BGR",
+    "Burundi": "BDI",
+    "Cambodia": "KHM",
+    "Cameroon": "CMR",
+    "Canada": "CAN",
+    "Chile": "CHL",
+    "China": "CHN",
+    "Colombia": "COL",
+    "Costa Rica": "CRI",
+    "Croatia": "HRV",
+    "Cuba": "CUB",
+    "Czechia": "CZE",
+    "Denmark": "DNK",
+    "Dominican Republic": "DOM",
+    "Ecuador": "ECU",
+    "Egypt": "EGY",
+    "El Salvador": "SLV",
+    "Ethiopia": "ETH",
+    "Fiji": "FJI",
+    "Finland": "FIN",
+    "France": "FRA",
+    "Georgia": "GEO",
+    "Germany": "DEU",
+    "Ghana": "GHA",
+    "Greece": "GRC",
+    "Guatemala": "GTM",
+    "Guyana": "GUY",
+    "Haiti": "HTI",
+    "Honduras": "HND",
+    "Hong Kong": "HKG",
+    "Hungary": "HUN",
+    "India": "IND",
+    "Indonesia": "IDN",
+    "Iraq": "IRQ",
+    "Ireland": "IRL",
+    "Israel": "ISR",
+    "Italy": "ITA",
+    "Jamaica": "JAM",
+    "Japan": "JPN",
+    "Jordan": "JOR",
+    "Kazakhstan": "KAZ",
+    "Kenya": "KEN",
+    "Kyrgyzstan": "KGZ",
+    "Latvia": "LVA",
+    "Lebanon": "LBN",
+    "Liberia": "LBR",
+    "Libya": "LBY",
+    "Malawi": "MWI",
+    "Malaysia": "MYS",
+    "Mexico": "MEX",
+    "Mongolia": "MNG",
+    "Morocco": "MAR",
+    "Mozambique": "MOZ",
+    "Myanmar": "MMR",
+    "Nepal": "NPL",
+    "Netherlands": "NLD",
+    "New Zealand": "NZL",
+    "Nicaragua": "NIC",
+    "Nigeria": "NGA",
+    "Norway": "NOR",
+    "Pakistan": "PAK",
+    "Panama": "PAN",
+    "Paraguay": "PRY",
+    "Peru": "PER",
+    "Philippines": "PHL",
+    "Poland": "POL",
+    "Portugal": "PRT",
+    "Puerto Rico": "PRI",
+    "Romania": "ROU",
+    "Russian Federation": "RUS",
+    "Rwanda": "RWA",
+    "Saudi Arabia": "SAU",
+    "Senegal": "SEN",
+    "Serbia": "SRB",
+    "Sierra Leone": "SLE",
+    "Singapore": "SGP",
+    "Slovakia": "SVK",
+    "Somalia": "SOM",
+    "South Africa": "ZAF",
+    "South Sudan": "SSD",
+    "Spain": "ESP",
+    "Sri Lanka": "LKA",
+    "Sudan": "SDN",
+    "Sweden": "SWE",
+    "Switzerland": "CHE",
+    "Taiwan": "TWN",
+    "Thailand": "THA",
+    "Timor-Leste": "TLS",
+    "Togo": "TGO",
+    "Trinidad And Tobago": "TTO",
+    "Tunisia": "TUN",
+    "Turkey": "TUR",
+    "Uganda": "UGA",
+    "Ukraine": "UKR",
+    "United Arab Emirates": "ARE",
+    "United Kingdom": "GBR",
+    "United States": "USA",
+    "Uruguay": "URY",
+    "Viet Nam": "VNM",
+    "Zimbabwe": "ZWE"
+};
