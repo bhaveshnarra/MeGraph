@@ -202,8 +202,8 @@
             var pos = 0;
             var max = panes.length;
 
-            $("#traitForm").hide("slow");
-            $("#peopleForm").hide("slow");
+            $("#traitForm").hide();
+            $("#peopleForm").hide();
 
 
 
@@ -302,6 +302,17 @@
                 $("#mainForm").hide();
                 $("#traitForm").hide();
                 $("#peopleForm").fadeIn("slow");
+            });
+
+            $("#homebutton").click(function(e) {
+                let element = document.getElementById("search");
+                element.scrollIntoView({
+                    behavior: "smooth",
+                    block: "end",
+                    inline: "nearest"
+                });
+                $("#homebutton").hide();
+                console.log("Hiding");
             });
 
             $("#traitSearchRedirect").click(function(e) {
@@ -549,22 +560,12 @@
 
 <body>
     <div class="Navbar">
-        <nav class="navbar navbar-expand-sm  navbar-light justify-content-center" style="width: 100%;margin: 0;display: block;background: transparent;">
+        <nav class="navbar navbar-expand-sm  navbar-light " style="width: 100%;margin: 0;display: block;background: transparent;display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: end;">
             <ul class="navbar-nav" style="background: transparent;">
-                <!-- <li class="nav-item active" id="traits">
-                    <a class="nav-link" href="#" style="  font-size: 2.5rem;
-                        font-family: sf_pro_displaybold;
-                        -webkit-font-smoothing: antialiased;
-    -moz-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    font-kerning: normal;
-    font-weight: 900;
-                    background: -webkit-linear-gradient(90deg, #000000 .01%, #000000 99.99%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;">MeGraph</a>
-                </li> -->
+                <a class="button button--primary mb-2" style="margin: 10px;" id="homebutton"><span>Home</span> </a>
             </ul>
         </nav>
     </div>
