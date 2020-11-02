@@ -139,13 +139,14 @@ function getPersonFromGraphQL(data2) {
 
 
 
-function getAllPeople() {
+function getAllPeople(Q) {
+    // console.log(Q);
     fetch('https://megraph.ap-south-1.aws.cloud.dgraph.io/graphql', {
             method: 'post',
             headers: {
                 'Content-Type': 'application/GraphQL; charset=UTF-8',
             },
-            body: 'query MyQuery {  queryelement(first: 100,filter: {}, order: {asc: position}) {    isBase    absolutePosition    letter    people{      name    }}}'
+            body: Q
         })
         .then(response => response.json())
         .then(commits => {
@@ -157,31 +158,39 @@ function getAllPeople() {
             let BaseElements = [];
             let cur = 1;
             let level = [];
+            // let E = $("#cyto");
+            document.getElementById("cyto").scrollIntoView({
+                behavior: "smooth",
+                block: "end",
+                inline: "nearest"
+            });
             data.forEach(element => {
-                // console.log(element["absolutePosition"]);
-                // console.log(element["absolutePosition"].slice(1));
-                let x = parseInt(element["absolutePosition"].slice(1));
-                let ele = {
-                    data: {},
+                // console.log(element["people"].length);
+                if (element["people"].length > 0) {
+                    let x = parseInt(element["absolutePosition"].slice(1));
+                    let ele = {
+                        data: {},
+                    }
+                    ele["data"]["id"] = element["absolutePosition"];
+                    ele["data"]["name"] = element["letter"];
+                    ele["data"]["count"] = element["people"].length;
+                    if (element["isBase"]) {
+                        ele["data"]["color"] = "#000000";
+                        BaseElements.push(element);
+                    } else {
+                        ele["data"]["color"] = "#ff009b";
+                    }
+                    Nodes.push(ele);
+                    if (x === cur) {
+                        level.push(element);
+                    } else {
+                        levels.push(level);
+                        cur = x;
+                        level = [];
+                        level.push(element);
+                    }
                 }
-                ele["data"]["id"] = element["absolutePosition"];
-                ele["data"]["name"] = element["letter"];
-                ele["data"]["count"] = element["people"].length;
-                if (element["isBase"]) {
-                    ele["data"]["color"] = "#000000";
-                    BaseElements.push(element);
-                } else {
-                    ele["data"]["color"] = "#ff009b";
-                }
-                Nodes.push(ele);
-                if (x === cur) {
-                    level.push(element);
-                } else {
-                    levels.push(level);
-                    cur = x;
-                    level = [];
-                    level.push(element);
-                }
+
             });
             levels.push(level);
             // console.log(Nodes);
@@ -211,7 +220,7 @@ function getAllPeople() {
 
             for (let i = BaseElements.length - 1; i > 0; i--) {
                 let j = i - 1;
-                if (j > 0) {
+                if (j >= 0) {
                     // console.log(j);
                     levels[j].forEach(element => {
                         if (element["isBase"]) {
@@ -248,26 +257,8 @@ function getAllPeople() {
                 },
 
                 layout: {
-                    name: 'breadthfirst',
-
-                    fit: true, // whether to fit the viewport to the graph
-                    directed: false, // whether the tree is directed downwards (or edges can point in any direction if false)
-                    padding: 30, // padding on fit
-                    circle: false, // put depths in concentric circles if true, put depths top down if false
-                    grid: false, // whether to create an even grid into which the DAG is placed (circle:false only)
-                    spacingFactor: 1.75, // positive spacing factor, larger => more space between nodes (N.B. n/a if causes overlap)
-                    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-                    avoidOverlap: true, // prevents node overlap, may overflow boundingBox if not enough space
-                    nodeDimensionsIncludeLabels: false, // Excludes the label when calculating node bounding boxes for the layout algorithm
-                    roots: undefined, // the roots of the trees
-                    maximal: true, // whether to shift nodes down their natural BFS depths in order to avoid upwards edges (DAGS only)
-                    animate: true, // whether to transition the node positions
-                    animationDuration: 500, // duration of animation in ms if enabled
-                    animationEasing: undefined, // easing of animation if enabled,
-                    animateFilter: function(node, i) { return true; }, // a function that determines whether the node should be animated.  All nodes animated by default on animate enabled.  Non-animated nodes are positioned immediately when the layout starts
-                    ready: undefined, // callback on layoutready
-                    stop: undefined, // callback on layoutstop
-                    transform: function(node, position) { return position; }
+                    name: 'dagre',
+                    rankDir: 'LR'
                 },
 
                 style: [{
@@ -297,7 +288,15 @@ function getAllPeople() {
                     makePopper(ele);
                 });
             });
-
+            cy.nodes().on('cxttap', function(evt) {
+                console.log("Hello");
+                $("#traitList a")[3].click();
+                document.getElementById("yellow").scrollIntoView({
+                    behavior: "smooth",
+                    block: "end",
+                    inline: "nearest"
+                });
+            });
             cy.nodes().unbind('mouseover');
             cy.nodes().bind('mouseover', (event) => event.target.tippy.show());
 
@@ -324,17 +323,85 @@ function makePopper(ele) {
     ele.tippy.setContent('Count ' + ele.data()["count"]);
 }
 
-function getAllTraits() {
+function getAllTraits(Q) {
     fetch('https://megraph.ap-south-1.aws.cloud.dgraph.io/graphql', {
             method: 'post',
             headers: {
                 'Content-Type': 'application/GraphQL; charset=UTF-8',
             },
-            body: 'query MyQuery {  queryTrait(first: 10) {      name       id        phenotype       description        base(filter: {isBase:false}){         people {        country    }  }      }   }'
+            body: Q
         })
         .then(response => response.json())
         .then(commits => {
-            console.log(commits["data"]["queryTrait"]);
+            // console.log(commits["data"]["queryTrait"]);
+            let traits = [];
+            var countryFreq = {};
+            commits["data"]["queryTrait"].forEach(element => {
+                var trait = new createTrait(element["name"], element["description"], element["phenotype"], element["base"]);
+                traits.push(trait);
+                // console.log(trait);
+                element["base"].forEach(e => {
+                    e["people"].forEach(z => {
+                        // console.log(z["country"]);
+                        if (z["country"] in countryFreq) {
+                            countryFreq[z["country"]] += 1;
+                        } else {
+                            countryFreq[z["country"]] = 1;
+                        }
+                    });
+                });
+                document.getElementById("red").scrollIntoView({
+                    behavior: "smooth",
+                    block: "end",
+                    inline: "nearest"
+                });
+                // console.log(Object.keys(countryFreq).length);
+                // console.log(countries);
+
+                var pleth = [];
+                var bar = [];
+
+                for (x in countryFreq) {
+                    bar.push({
+                        "country": x,
+                        "freq": countryFreq[x]
+                    });
+                    var k = countries[x];
+                    pleth.push([k, countryFreq[x]]);
+                }
+
+
+                plotHorizontalBar(bar);
+                getPersonFromGraphQL(pleth);
+
+            });
+
+            traits.forEach(element => {
+                $("#traitList").append("<a class=\"button button--primary mb-2\" style=\"margin: 10px;\"><span>" + element["name"] + " </span></a>");
+
+            });
+
+            $("#traitList a").click(function(e) {
+                // console.log($('#traitList a').index(this));
+                let idx = $('#traitList a').index(this);
+                $("#traitCard").html("<div class=\"card text-center\" style=\"background: transparent;border: none;\">      <div class=\"card-body\" style=\"background: transparent;border: none;\"> <h2 style=\"font-size: 3rem;  font-weight: 900;\"> " + traits[idx]["name"] + "</h2>  <h3 class=\"card-title\">" + traits[idx]["phenotype"] + "</h3>    <p class=\"card-text\">" + traits[idx]["description"] + "</p>  </div>  </div>");
+            });
+        });
+
+}
+
+
+function getAllTraitswithoutRedirect(Q) {
+    fetch('https://megraph.ap-south-1.aws.cloud.dgraph.io/graphql', {
+            method: 'post',
+            headers: {
+                'Content-Type': 'application/GraphQL; charset=UTF-8',
+            },
+            body: Q
+        })
+        .then(response => response.json())
+        .then(commits => {
+            // console.log(commits["data"]["queryTrait"]);
             let traits = [];
             var countryFreq = {};
             commits["data"]["queryTrait"].forEach(element => {
@@ -352,9 +419,6 @@ function getAllTraits() {
                     });
                 });
 
-                console.log(Object.keys(countryFreq).length);
-                console.log(countries);
-
                 var pleth = [];
                 var bar = [];
 
@@ -367,16 +431,6 @@ function getAllTraits() {
                     pleth.push([k, countryFreq[x]]);
                 }
 
-                var sorted = [];
-                for (var key in countryFreq) {
-                    sorted[sorted.length] = countryFreq;
-                }
-                sorted.sort();
-
-                console.log(sorted);
-
-                // console.log(pleth);
-                // console.log(bar);
                 plotHorizontalBar(bar);
                 getPersonFromGraphQL(pleth);
 
@@ -388,7 +442,6 @@ function getAllTraits() {
             });
 
             $("#traitList a").click(function(e) {
-                console.log($('#traitList a').index(this));
                 let idx = $('#traitList a').index(this);
                 $("#traitCard").html("<div class=\"card text-center\" style=\"background: transparent;border: none;\">      <div class=\"card-body\" style=\"background: transparent;border: none;\"> <h2 style=\"font-size: 3rem;  font-weight: 900;\"> " + traits[idx]["name"] + "</h2>  <h3 class=\"card-title\">" + traits[idx]["phenotype"] + "</h3>    <p class=\"card-text\">" + traits[idx]["description"] + "</p>  </div>  </div>");
             });
